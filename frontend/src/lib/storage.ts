@@ -9,8 +9,10 @@ export async function getAllMissions(): Promise<Mission[]> {
     const raw = await AsyncStorage.getItem(MISSIONS_KEY);
     if (!raw) return [];
     const list = JSON.parse(raw) as Mission[];
+    // backward-compat: ensure `locked` exists on legacy records
+    const normalized = list.map((m) => ({ ...m, locked: m.locked ?? false }));
     // newest first
-    return list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return normalized.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   } catch {
     return [];
   }

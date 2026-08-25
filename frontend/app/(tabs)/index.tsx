@@ -67,11 +67,19 @@ function MissionCard({ mission, onPress }: { mission: Mission; onPress: () => vo
           {formatDate(mission.einsatzDatum, mission.einsatzZeit)}
           {mission.einsatzZeit ? ` · ${mission.einsatzZeit}` : ""}
         </Text>
-        {mission.einsatzNummer ? (
-          <View style={styles.chip}>
-            <Text style={styles.chipText}>Nr. {mission.einsatzNummer}</Text>
-          </View>
-        ) : null}
+        <View style={styles.cardHeaderRight}>
+          {mission.locked ? (
+            <View style={styles.lockBadge} testID={`mission-locked-${mission.id}`}>
+              <Feather name="lock" size={11} color={colors.warning} />
+              <Text style={styles.lockBadgeText}>Gesperrt</Text>
+            </View>
+          ) : null}
+          {mission.einsatzNummer ? (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>Nr. {mission.einsatzNummer}</Text>
+            </View>
+          ) : null}
+        </View>
       </View>
       <Text style={styles.cardTitle} numberOfLines={1}>
         {mission.stichwort || "Ohne Stichwort"}
@@ -203,6 +211,25 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 10,
     color: colors.onBrandTertiary,
+    fontWeight: "500",
+  },
+  cardHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  lockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: "#FBEFD9",
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    color: colors.warning,
     fontWeight: "500",
   },
   cardTitle: {

@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 2 (edit + write-protect) tested end-to-end on Expo web preview at mobile viewport 390x844. All 11 new-behavior scenarios PASSED: create -> detail, Schreibschutz card + edit button visible, edit navigates to prefilled form (Stichwort='Todesfall häuslich', Ort='Teststraße 1'), edit submits with label 'Änderungen speichern', detail shows updated 'Verkehrsunfall Update', list shows updated title with exactly 1 card (no duplicate), lock ON shows toast 'Einsatz schreibgeschützt.', edit button becomes 'Bearbeiten (gesperrt)' with aria-disabled=true, delete icon aria-disabled=true, locked edit-tap does not navigate, list card shows 'Gesperrt' badge (mission-locked-<id>), unlock toast 'Schreibschutz aufgehoben.' and edit re-enables, PDF export & Print remain enabled (aria-disabled null) while locked, browser reload preserves lock state (edit text remained 'Bearbeiten (gesperrt)' after reload). No red screens or runtime errors. No deprecated Expo packages detected in the referenced files (no expo-av / expo-barcode-scanner / expo-background-fetch).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "detail (einsatz/[id])", "issues": ["Minor: React Native Web deprecation warnings in console ('shadow*' style props deprecated, use 'boxShadow'; props.pointerEvents deprecated, use style.pointerEvents). Coming from vendor components (Feather / gesture-handler / RNW). Not blocking but should be cleaned up eventually."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "None required for iteration 2 — all requested new behaviors verified working.",
+    "Optional cleanup: address RNW deprecation warnings ('shadow*' props, props.pointerEvents) originating in style objects."
+  ],
+  "critical_code_review_comments": [
+    "storage.saveMission unshifts new items and updates existing by id — correctly prevents duplicate on edit (verified via list showing 1 card after edit).",
+    "getAllMissions normalizes legacy records with `locked ?? false` — good backward compatibility.",
+    "Detail screen guards edit/delete with `mission.locked` check before router.push/deleteMission — safe.",
+    "edit.tsx also renders a locked screen fallback if user reaches /edit while locked — defense in depth, good."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100% (11/11 scenarios)"},
+  "seed_data_creation": "Created one test mission (Todesfall häuslich -> Verkehrsunfall Update) via UI during flow; stored in AsyncStorage/localStorage of the browser session only.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Detail route is at /einsatz/[id] (index.tsx) and edit route at /einsatz/[id]/edit. AsyncStorage on web = localStorage; each fresh Playwright context starts empty, so create a mission within the same session before testing edit/lock flows. TestIDs verified working: lock-switch, edit-mission-btn, detail-delete, detail-back, mission-locked-<id>, mission-card-<id>, save-mission-btn, cancel-mission-btn, edit-back, mission-form-scroll, export-pdf-btn, print-pdf-btn, toast.",
+  "rca_of_issue": "N/A — no issues found."
+}

@@ -38,7 +38,8 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="einsatz/[id]" options={{ presentation: "card" }} />
+          <Stack.Screen name="einsatz/[id]/index" options={{ presentation: "card" }} />
+          <Stack.Screen name="einsatz/[id]/edit" options={{ presentation: "card" }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -6,13 +6,14 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
+  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { colors, spacing, radius, fontSize } from "@/src/theme";
-import { deleteMission, getMission } from "@/src/lib/storage";
+import { deleteMission, getMission, saveMission } from "@/src/lib/storage";
 import { printPdf, sharePdf } from "@/src/lib/pdf";
 import type { Mission } from "@/src/types";
 
@@ -78,9 +79,11 @@ export default function EinsatzDetailScreen() {
     setLoading(false);
   }, [id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   useEffect(() => {
     if (!toast) return;
@@ -88,13 +91,27 @@ export default function EinsatzDetailScreen() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  const onToggleLock = async (value: boolean) => {
+    if (!mission) return;
+    const updated: Mission = { ...mission, locked: value, updatedAt: new Date().toISOString() };
+    setMission(updated);
+    await saveMission(updated);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setToast(value ? "Einsatz schreibgeschützt." : "Schreibschutz aufgehoben.");
+  };
+
+  const onEdit = () => {
+    if (!mission || mission.locked) return;
+    router.push(`/einsatz/${mission.id}/edit`);
+  };
+
   const onShare = async () => {
     if (!mission) return;
     try {
       setBusy("share");
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await sharePdf(mission);
-    } catch (e) {
+    } catch {
       setToast("PDF-Erstellung fehlgeschlagen.");
     } finally {
       setBusy(null);
@@ -107,7 +124,7 @@ export default function EinsatzDetailScreen() {
       setBusy("print");
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await printPdf(mission);
-    } catch (e) {
+    } catch {
       setToast("Drucken fehlgeschlagen.");
     } finally {
       setBusy(null);
@@ -115,7 +132,7 @@ export default function EinsatzDetailScreen() {
   };
 
   const onDelete = async () => {
-    if (!mission) return;
+    if (!mission || mission.locked) return;
     setBusy("delete");
     await deleteMission(mission.id);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -145,6 +162,8 @@ export default function EinsatzDetailScreen() {
     );
   }
 
+  const locked = mission.locked;
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.topBar}>
@@ -159,11 +178,16 @@ export default function EinsatzDetailScreen() {
         <Text style={styles.topBarTitle}>Einsatz-Details</Text>
         <Pressable
           onPress={onDelete}
+          disabled={locked}
           style={styles.iconBtn}
           testID="detail-delete"
           hitSlop={8}
         >
-          <Feather name="trash-2" size={18} color={colors.error} />
+          <Feather
+            name="trash-2"
+            size={18}
+            color={locked ? colors.onSurfaceTertiary : colors.error}
+          />
         </Pressable>
       </View>
 
@@ -183,6 +207,53 @@ export default function EinsatzDetailScreen() {
             </View>
           ) : null}
         </View>
+
+        <View style={styles.lockCard} testID="lock-card">
+          <View style={styles.lockIconWrap}>
+            <Feather
+              name={locked ? "lock" : "unlock"}
+              size={18}
+              color={locked ? colors.warning : colors.brandPrimary}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.lockTitle}>Schreibschutz</Text>
+            <Text style={styles.lockSub}>
+              {locked
+                ? "Einsatz ist gesperrt. Zum Bearbeiten deaktivieren."
+                : "Aktivieren, um versehentliche Änderungen zu verhindern."}
+            </Text>
+          </View>
+          <Switch
+            value={locked}
+            onValueChange={onToggleLock}
+            trackColor={{ false: colors.surfaceTertiary, true: colors.brandPrimary }}
+            thumbColor={colors.surface}
+            testID="lock-switch"
+          />
+        </View>
+
+        <Pressable
+          onPress={onEdit}
+          disabled={locked}
+          style={({ pressed }) => [
+            styles.editBtn,
+            locked && styles.editBtnDisabled,
+            pressed && !locked && { opacity: 0.85 },
+          ]}
+          testID="edit-mission-btn"
+        >
+          <Feather
+            name="edit-3"
+            size={16}
+            color={locked ? colors.onSurfaceTertiary : colors.brandPrimary}
+          />
+          <Text
+            style={[styles.editBtnText, locked && { color: colors.onSurfaceTertiary }]}
+          >
+            {locked ? "Bearbeiten (gesperrt)" : "Einsatz bearbeiten"}
+          </Text>
+        </Pressable>
 
         <Section title="Einsatzdaten">
           <Row label="Einsatz-Nr." value={mission.einsatzNummer} />
@@ -255,7 +326,7 @@ export default function EinsatzDetailScreen() {
           </Section>
         ) : null}
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
 
       <View style={styles.stickyBar}>
@@ -384,6 +455,58 @@ const styles = StyleSheet.create({
   heroSub: {
     fontSize: fontSize.base,
     color: colors.onSurfaceSecondary,
+  },
+  lockCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  lockIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  lockTitle: {
+    fontSize: fontSize.base,
+    color: colors.onSurface,
+    fontWeight: "500",
+  },
+  lockSub: {
+    fontSize: fontSize.sm,
+    color: colors.onSurfaceSecondary,
+    marginTop: 2,
+  },
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.brandPrimary,
+    backgroundColor: colors.brandTertiary,
+    marginBottom: spacing.md,
+  },
+  editBtnDisabled: {
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  editBtnText: {
+    color: colors.brandPrimary,
+    fontSize: fontSize.base,
+    fontWeight: "500",
   },
   section: {
     marginTop: spacing.lg,

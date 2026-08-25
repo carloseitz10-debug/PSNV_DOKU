@@ -36,6 +36,7 @@ export interface Mission {
   // Custom / Freitext
   eigeneNotizen: string;
   dauerMinuten: string;
+  locked: boolean;
 }
 
 export interface Settings {
