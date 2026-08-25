@@ -1,0 +1,170 @@
+{
+  "app_name": "PSNV-B Doku",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A calm, highly readable, and deeply professional utility interface designed to reduce cognitive load during and after stressful psychosocial emergency missions.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#1C1C1E",
+    "surfaceSecondary": "#F5F5F7",
+    "onSurfaceSecondary": "#48484A",
+    "surfaceTertiary": "#EBEBF0",
+    "onSurfaceTertiary": "#8E8E93",
+    "surfaceInverse": "#1C1C1E",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#4A6B53",
+    "brandPrimary": "#4A6B53",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#D8E2DA",
+    "onBrandSecondary": "#2E4233",
+    "brandTertiary": "#E8EFE9",
+    "onBrandTertiary": "#1A261D",
+    "success": "#3E7756",
+    "onSuccess": "#FFFFFF",
+    "warning": "#C68C36",
+    "onWarning": "#FFFFFF",
+    "error": "#B94A48",
+    "onError": "#FFFFFF",
+    "border": "#E5E5EA",
+    "borderStrong": "#C7C7CC",
+    "divider": "#E5E5EA"
+  },
+  "typography": {
+    "displayFontFamily": "Geist",
+    "textFontFamily": "Geist",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous vertical breathing room for forms to avoid tapping errors. Strict safe-area compliance. Cards should never be flush to the screen edge.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 1,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use glassmorphism for the bottom tab bar",
+      "Use glass for sticky header backgrounds over scrollable lists/forms",
+      "Use frosted glass overlay for the sticky 'Als PDF exportieren' CTA container at the bottom of the details screen"
+    ],
+    "dont's": [
+      "Do not use glass on form inputs or list items",
+      "Do not use on cards in dense lists"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Einsätze (Home)",
+      "purpose": "A quick-scan list of all documented missions.",
+      "states": {
+        "loading": "Centered spinner",
+        "empty": "Illustration of a notebook with 'Keine Einsätze dokumentiert. Tippe auf den Tab Neuer Einsatz, um zu beginnen.'",
+        "error": "Error message with retry button"
+      },
+      "layout": "Top sticky header with title 'Einsätze'. Below, a single column of cards. Each card displays the date/time, Einsatzort (location), Stichwort (keyword), and a status chip. Use MD spacing between cards. Do not cramp rows."
+    },
+    {
+      "name": "Neuer Einsatz",
+      "purpose": "A highly structured, stress-free form for documenting PSNV-B care.",
+      "states": {
+        "loading": "Centered spinner",
+        "empty": "N/A - this is a data entry form.",
+        "error": "Standard error toast/banner."
+      },
+      "layout": "Single-column, vertically stacked form. Wrap in KeyboardAvoidingView. Labels sit above inputs. Group fields into clear sections (Einsatzdaten, Betroffene, Zustand & Symptome, Maßnahmen, Übergabe) using subtle dividers and XL top margins. Sticky 'Speichern' button anchored at the bottom with safe-area clearance."
+    },
+    {
+      "name": "Einsatz Details",
+      "purpose": "Read-only overview of a documented mission with a clear action to export.",
+      "states": {
+        "loading": "Skeleton of the form structure",
+        "empty": "N/A",
+        "error": "Error message with back button"
+      },
+      "layout": "Hero section at top with date and large title (Stichwort). Below, read-only grouped rows matching the form sections, but presented as text pairs (Label / Value). A sticky glass container at the bottom holds the 'Als PDF exportieren' primary button."
+    },
+    {
+      "name": "Statistik",
+      "purpose": "Overview of mission volume and types.",
+      "states": {
+        "loading": "Spinner",
+        "empty": "Illustration with 'Noch keine Daten für Statistiken.'",
+        "error": "N/A"
+      },
+      "layout": "Top hero banner using the statistics chart abstract image with a vertical gradient scrim. Below, large metric cards for 'Total Missions' and 'Missions this Month', followed by a list of event types (Stichworte) with their counts."
+    },
+    {
+      "name": "Einstellungen",
+      "purpose": "Configure default responder information to save time during documentation.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Simple list layout. Fields for 'Name der Einsatzkraft' and 'Organisation'. A top cover banner using the calm sage gradient image."
+    }
+  ],
+  "images": {
+    "empty_state_notebook": {
+      "url": "https://images.unsplash.com/photo-1620275765334-4ed948bb4502?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwxfHxjYWxtJTIwY2xpcGJvYXJkJTIwcGFwZXIlMjBub3RlYm9vayUyMGRlc2t8ZW58MHx8fHwxNzg3NjU0NTAzfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Top down view of a calm desk with notebook and pen"
+    },
+    "statistics_cover": {
+      "url": "https://images.pexels.com/photos/97080/pexels-photo-97080.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Abstract blue and white chart interface"
+    },
+    "settings_cover": {
+      "url": "https://images.pexels.com/photos/8357144/pexels-photo-8357144.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Soothing abstract gradient of sage green tones"
+    }
+  },
+  "haptics": {
+    "events": {
+      "save_mission": "notification_success",
+      "export_pdf": "impact_medium",
+      "tab_switch": "selection",
+      "toggle_switch": "impact_light"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the color palette provided; absolutely NO blue, navy, or purple shades are allowed. Rely on the calming sage green brand color.",
+    "Form inputs must always have labels placed ABOVE the input field. Do not use floating labels.",
+    "All form entry must happen in a single vertical scrollable column (Neuer Einsatz). Ensure a sticky 'Speichern' button at the bottom inside a KeyboardAvoidingView.",
+    "Include standard PSNV-B specific fields in the form: Datum, Ort, Stichwort, Betroffene (Name/Alter/Rolle), Symptome, Maßnahmen, and Übergabe.",
+    "Implement AsyncStorage strictly for all local data saving, as requested.",
+    "Use expo-print and expo-sharing to implement the PDF export functionality for the mission details.",
+    "Font weights must never exceed 500 (use size and color for hierarchy, not weight).",
+    "Images used as banners (Statistik and Einstellungen) must have a top-down vertical linear gradient scrim (transparent to surfaceInverse) to ensure text readability.",
+    "Do not use emojis anywhere in the UI."
+  ]
+}
