@@ -15,6 +15,7 @@ import * as Haptics from "expo-haptics";
 import { colors, spacing, radius, fontSize } from "@/src/theme";
 import { deleteMission, getMission, saveMission } from "@/src/lib/storage";
 import { printPdf, sharePdf } from "@/src/lib/pdf";
+import { formatDuration } from "@/src/lib/duration";
 import type { Mission } from "@/src/types";
 
 function Row({ label, value }: { label: string; value?: string }) {
@@ -51,6 +52,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function formatDate(iso: string) {
+  if (!iso) return "—";
   try {
     const d = new Date(iso);
     return d.toLocaleDateString("de-DE", {
@@ -62,6 +64,25 @@ function formatDate(iso: string) {
   } catch {
     return iso;
   }
+}
+
+function TimeBlock({
+  label,
+  date,
+  time,
+}: {
+  label: string;
+  date: string;
+  time: string;
+}) {
+  return (
+    <View style={styles.timeBlockRO}>
+      <Text style={styles.timeBlockLabel}>{label}</Text>
+      <Text style={styles.timeBlockValue}>
+        {date || time ? `${date || "—"}${time ? ` · ${time}` : ""}` : "—"}
+      </Text>
+    </View>
+  );
 }
 
 export default function EinsatzDetailScreen() {
@@ -163,6 +184,10 @@ export default function EinsatzDetailScreen() {
   }
 
   const locked = mission.locked;
+  const titleText =
+    mission.stichworte.length > 0
+      ? mission.stichworte.join(", ")
+      : "Ohne Stichwort";
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -194,12 +219,10 @@ export default function EinsatzDetailScreen() {
       <ScrollView contentContainerStyle={styles.content} testID="detail-scroll">
         <View style={styles.hero}>
           <Text style={styles.heroDate}>
-            {formatDate(mission.einsatzDatum)}
-            {mission.einsatzZeit ? ` · ${mission.einsatzZeit}` : ""}
+            {formatDate(mission.alarmierungDatum)}
+            {mission.alarmierungZeit ? ` · ${mission.alarmierungZeit}` : ""}
           </Text>
-          <Text style={styles.heroTitle}>
-            {mission.stichwort || "Ohne Stichwort"}
-          </Text>
+          <Text style={styles.heroTitle}>{titleText}</Text>
           {mission.einsatzOrt ? (
             <View style={styles.heroRow}>
               <Feather name="map-pin" size={14} color={colors.onSurfaceSecondary} />
@@ -256,15 +279,28 @@ export default function EinsatzDetailScreen() {
         </Pressable>
 
         <Section title="Einsatzdaten">
+          <TimeBlock
+            label="Alarmierung"
+            date={mission.alarmierungDatum}
+            time={mission.alarmierungZeit}
+          />
+          <TimeBlock
+            label="Eintreffen"
+            date={mission.eintreffenDatum}
+            time={mission.eintreffenZeit}
+          />
+          <TimeBlock
+            label="Einsatzende"
+            date={mission.einsatzendeDatum}
+            time={mission.einsatzendeZeit}
+          />
+          <Row label="Dauer" value={formatDuration(mission.dauerMinuten)} />
           <Row label="Einsatz-Nr." value={mission.einsatzNummer} />
           <Row label="Einsatzort" value={mission.einsatzOrt} />
-          <Row label="Stichwort" value={mission.stichwort} />
-          <Row
-            label="Dauer"
-            value={mission.dauerMinuten ? `${mission.dauerMinuten} Min.` : ""}
-          />
           <Row label="Einsatzkraft" value={mission.einsatzkraft} />
           <Row label="Organisation" value={mission.organisation} />
+          <Text style={styles.rowLabel}>Stichworte / Ereignisart</Text>
+          <ChipsRO items={mission.stichworte} />
         </Section>
 
         <Section title={`Betroffene (${mission.betroffene.length})`}>
@@ -279,18 +315,38 @@ export default function EinsatzDetailScreen() {
           ))}
         </Section>
 
-        <Section title="Zustand & Symptome">
-          <Text style={styles.rowLabel}>Symptome</Text>
-          <ChipsRO items={mission.symptome} />
-          {mission.symptomeNotiz ? (
+        <Section title="Situation an der Einsatzstelle">
+          <Text style={styles.rowLabel}>Einsatzkräfte vor Ort</Text>
+          <ChipsRO items={mission.einsatzkraefteVorOrt} />
+          <Text style={styles.rowLabel}>Nachforderung</Text>
+          <ChipsRO items={mission.nachforderungen} />
+          {mission.nachforderungenSonstiges ? (
             <View style={styles.noteBox}>
-              <Text style={styles.noteText}>{mission.symptomeNotiz}</Text>
+              <Text style={styles.noteText}>
+                {mission.nachforderungenSonstiges}
+              </Text>
             </View>
           ) : null}
         </Section>
 
+        <Section title="Setting">
+          <ChipsRO items={mission.setting} />
+          {mission.settingNotiz ? (
+            <View style={styles.noteBox}>
+              <Text style={styles.noteText}>{mission.settingNotiz}</Text>
+            </View>
+          ) : null}
+          {mission.weitereBeobachtungen ? (
+            <>
+              <Text style={styles.rowLabel}>Weitere Beobachtungen</Text>
+              <View style={styles.noteBox}>
+                <Text style={styles.noteText}>{mission.weitereBeobachtungen}</Text>
+              </View>
+            </>
+          ) : null}
+        </Section>
+
         <Section title="Maßnahmen">
-          <Text style={styles.rowLabel}>Durchgeführt</Text>
           <ChipsRO items={mission.massnahmen} />
           {mission.massnahmenNotiz ? (
             <View style={styles.noteBox}>
@@ -441,10 +497,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 24,
     color: colors.onSurface,
     fontWeight: "500",
     marginTop: spacing.xs,
+    lineHeight: 30,
   },
   heroRow: {
     flexDirection: "row",
@@ -506,6 +563,24 @@ const styles = StyleSheet.create({
   editBtnText: {
     color: colors.brandPrimary,
     fontSize: fontSize.base,
+    fontWeight: "500",
+  },
+  timeBlockRO: {
+    padding: spacing.md,
+    backgroundColor: colors.brandTertiary,
+    borderRadius: radius.md,
+  },
+  timeBlockLabel: {
+    fontSize: fontSize.sm,
+    color: colors.onBrandTertiary,
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  timeBlockValue: {
+    fontSize: fontSize.lg,
+    color: colors.onBrandTertiary,
     fontWeight: "500",
   },
   section: {

@@ -64,8 +64,8 @@ function MissionCard({ mission, onPress }: { mission: Mission; onPress: () => vo
     >
       <View style={styles.cardHeader}>
         <Text style={styles.cardDate}>
-          {formatDate(mission.einsatzDatum, mission.einsatzZeit)}
-          {mission.einsatzZeit ? ` · ${mission.einsatzZeit}` : ""}
+          {formatDate(mission.alarmierungDatum, mission.alarmierungZeit)}
+          {mission.alarmierungZeit ? ` · ${mission.alarmierungZeit}` : ""}
         </Text>
         <View style={styles.cardHeaderRight}>
           {mission.locked ? (
@@ -81,8 +81,10 @@ function MissionCard({ mission, onPress }: { mission: Mission; onPress: () => vo
           ) : null}
         </View>
       </View>
-      <Text style={styles.cardTitle} numberOfLines={1}>
-        {mission.stichwort || "Ohne Stichwort"}
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        {mission.stichworte.length > 0
+          ? mission.stichworte.join(", ")
+          : "Ohne Stichwort"}
       </Text>
       <View style={styles.cardRow}>
         <Feather name="map-pin" size={13} color={colors.onSurfaceSecondary} />

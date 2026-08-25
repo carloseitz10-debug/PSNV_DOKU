@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -15,22 +15,139 @@ import {
   Section,
   Field,
   TextField,
-  ChipRow,
   SegmentSelect,
 } from "@/src/components/form";
 import { colors, spacing, radius, fontSize } from "@/src/theme";
 import {
+  EINSATZKRAEFTE_VOR_ORT_OPTIONS,
   MASSNAHMEN_OPTIONS,
-  SYMPTOME_OPTIONS,
+  NACHFORDERUNG_OPTIONS,
+  ORGANISATION_DEFAULT_OPTIONS,
+  SETTING_OPTIONS,
+  STICHWORT_DEFAULT_OPTIONS,
   UEBERGABE_OPTIONS,
   type Affected,
   type Gender,
   type Mission,
   type Role,
+  type Settings,
 } from "@/src/types";
+import {
+  addCustomOrganisation,
+  addCustomStichwort,
+  getSettings,
+} from "@/src/lib/storage";
+import { computeDurationMinutes, formatDuration } from "@/src/lib/duration";
 
 function emptyAffected(): Affected {
   return { name: "", age: "", gender: "unbekannt", role: "Betroffene:r" };
+}
+
+// Vertical checkbox list – multi-select
+function CheckList({
+  options,
+  selected,
+  onToggle,
+  testIDPrefix,
+}: {
+  options: string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+  testIDPrefix?: string;
+}) {
+  return (
+    <View style={styles.checkList}>
+      {options.map((opt) => {
+        const isSel = selected.includes(opt);
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => onToggle(opt)}
+            style={styles.checkRow}
+            testID={testIDPrefix ? `${testIDPrefix}-${opt}` : undefined}
+          >
+            <View style={[styles.checkbox, isSel && styles.checkboxSelected]}>
+              {isSel ? (
+                <Feather name="check" size={14} color={colors.onBrandPrimary} />
+              ) : null}
+            </View>
+            <Text style={styles.checkText}>{opt}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// Vertical radio list – single-select
+function RadioList({
+  options,
+  selected,
+  onChange,
+  testIDPrefix,
+}: {
+  options: string[];
+  selected: string;
+  onChange: (v: string) => void;
+  testIDPrefix?: string;
+}) {
+  return (
+    <View style={styles.checkList}>
+      {options.map((opt) => {
+        const isSel = selected === opt;
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => onChange(opt)}
+            style={styles.checkRow}
+            testID={testIDPrefix ? `${testIDPrefix}-${opt}` : undefined}
+          >
+            <View style={[styles.radio, isSel && styles.radioSelected]}>
+              {isSel ? <View style={styles.radioDot} /> : null}
+            </View>
+            <Text style={styles.checkText}>{opt}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// Horizontal chip row (for compact multi-selects like Rolle, Übergabe)
+function ChipRowInline({
+  options,
+  selected,
+  onToggle,
+  testIDPrefix,
+}: {
+  options: string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+  testIDPrefix?: string;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.chipRow}
+    >
+      {options.map((opt) => {
+        const isSel = selected.includes(opt);
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => onToggle(opt)}
+            style={[styles.chip, isSel && styles.chipSelected]}
+            testID={testIDPrefix ? `${testIDPrefix}-${opt}` : undefined}
+          >
+            <Text style={[styles.chipText, isSel && styles.chipTextSelected]}>
+              {opt}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
 }
 
 export function MissionForm({
@@ -45,6 +162,14 @@ export function MissionForm({
   onCancel?: () => void;
 }) {
   const [m, setM] = useState<Mission>(initial);
+  const [settings, setSettings] = useState<Settings>({
+    einsatzkraft: "",
+    organisation: "",
+    customStichworte: [],
+    customOrganisationen: [],
+  });
+  const [orgWeitereInput, setOrgWeitereInput] = useState("");
+  const [stichwortInput, setStichwortInput] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,15 +177,55 @@ export function MissionForm({
   }, [initial]);
 
   useEffect(() => {
+    (async () => {
+      const s = await getSettings();
+      setSettings(s);
+    })();
+  }, []);
+
+  useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 2500);
     return () => clearTimeout(t);
   }, [toast]);
 
+  const stichwortOptions = useMemo(
+    () => [...STICHWORT_DEFAULT_OPTIONS, ...settings.customStichworte],
+    [settings.customStichworte],
+  );
+  const orgOptions = useMemo(
+    () => [...ORGANISATION_DEFAULT_OPTIONS, ...settings.customOrganisationen],
+    [settings.customOrganisationen],
+  );
+
+  const dauerMin = useMemo(
+    () =>
+      computeDurationMinutes(
+        m.alarmierungDatum,
+        m.alarmierungZeit,
+        m.einsatzendeDatum,
+        m.einsatzendeZeit,
+      ),
+    [
+      m.alarmierungDatum,
+      m.alarmierungZeit,
+      m.einsatzendeDatum,
+      m.einsatzendeZeit,
+    ],
+  );
+
   const set = <K extends keyof Mission>(key: K, value: Mission[K]) =>
     setM((prev) => ({ ...prev, [key]: value }));
 
-  const toggle = (key: "symptome" | "massnahmen", value: string) => {
+  const toggleMulti = (
+    key:
+      | "stichworte"
+      | "einsatzkraefteVorOrt"
+      | "nachforderungen"
+      | "setting"
+      | "massnahmen",
+    value: string,
+  ) => {
     setM((prev) => {
       const list = prev[key];
       const next = list.includes(value)
@@ -90,15 +255,42 @@ export function MissionForm({
     }));
   };
 
-  const canSave = m.einsatzDatum.trim() !== "" && m.stichwort.trim() !== "";
+  const addStichwortSonstiges = async () => {
+    const val = stichwortInput.trim();
+    if (!val) return;
+    Keyboard.dismiss();
+    const next = await addCustomStichwort(val);
+    setSettings(next);
+    // auto-select this custom option
+    setM((prev) =>
+      prev.stichworte.includes(val)
+        ? prev
+        : { ...prev, stichworte: [...prev.stichworte, val] },
+    );
+    setStichwortInput("");
+    Haptics.selectionAsync();
+  };
+
+  const addOrgWeitere = async () => {
+    const val = orgWeitereInput.trim();
+    if (!val) return;
+    Keyboard.dismiss();
+    const next = await addCustomOrganisation(val);
+    setSettings(next);
+    setM((prev) => ({ ...prev, organisation: val }));
+    setOrgWeitereInput("");
+    Haptics.selectionAsync();
+  };
+
+  const canSave = m.alarmierungDatum.trim() !== "" && m.stichworte.length > 0;
 
   const onSave = async () => {
     if (!canSave) {
-      setToast("Bitte mindestens Datum und Stichwort ausfüllen.");
+      setToast("Bitte Alarmierungs-Datum und mindestens ein Stichwort auswählen.");
       return;
     }
     Keyboard.dismiss();
-    await onSubmit(m);
+    await onSubmit({ ...m, dauerMinuten: dauerMin });
   };
 
   return (
@@ -111,29 +303,96 @@ export function MissionForm({
         keyboardShouldPersistTaps="handled"
         testID="mission-form-scroll"
       >
+        {/* EINSATZDATEN */}
         <Section title="Einsatzdaten" first>
-          <View style={styles.rowSplit}>
-            <View style={{ flex: 1 }}>
-              <Field label="Datum">
-                <TextField
-                  value={m.einsatzDatum}
-                  onChangeText={(v) => set("einsatzDatum", v)}
-                  placeholder="YYYY-MM-DD"
-                  testID="input-datum"
-                />
-              </Field>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Field label="Uhrzeit">
-                <TextField
-                  value={m.einsatzZeit}
-                  onChangeText={(v) => set("einsatzZeit", v)}
-                  placeholder="HH:MM"
-                  testID="input-zeit"
-                />
-              </Field>
+          <View style={styles.timeBlock}>
+            <Text style={styles.timeBlockLabel}>Alarmierung</Text>
+            <View style={styles.rowSplit}>
+              <View style={{ flex: 1 }}>
+                <Field label="Datum">
+                  <TextField
+                    value={m.alarmierungDatum}
+                    onChangeText={(v) => set("alarmierungDatum", v)}
+                    placeholder="YYYY-MM-DD"
+                    testID="input-alarmierung-datum"
+                  />
+                </Field>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field label="Uhrzeit">
+                  <TextField
+                    value={m.alarmierungZeit}
+                    onChangeText={(v) => set("alarmierungZeit", v)}
+                    placeholder="HH:MM"
+                    testID="input-alarmierung-zeit"
+                  />
+                </Field>
+              </View>
             </View>
           </View>
+
+          <View style={styles.timeBlock}>
+            <Text style={styles.timeBlockLabel}>Eintreffen</Text>
+            <View style={styles.rowSplit}>
+              <View style={{ flex: 1 }}>
+                <Field label="Datum">
+                  <TextField
+                    value={m.eintreffenDatum}
+                    onChangeText={(v) => set("eintreffenDatum", v)}
+                    placeholder="YYYY-MM-DD"
+                    testID="input-eintreffen-datum"
+                  />
+                </Field>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field label="Uhrzeit">
+                  <TextField
+                    value={m.eintreffenZeit}
+                    onChangeText={(v) => set("eintreffenZeit", v)}
+                    placeholder="HH:MM"
+                    testID="input-eintreffen-zeit"
+                  />
+                </Field>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.timeBlock}>
+            <Text style={styles.timeBlockLabel}>Einsatzende</Text>
+            <View style={styles.rowSplit}>
+              <View style={{ flex: 1 }}>
+                <Field label="Datum">
+                  <TextField
+                    value={m.einsatzendeDatum}
+                    onChangeText={(v) => set("einsatzendeDatum", v)}
+                    placeholder="YYYY-MM-DD"
+                    testID="input-einsatzende-datum"
+                  />
+                </Field>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field label="Uhrzeit">
+                  <TextField
+                    value={m.einsatzendeZeit}
+                    onChangeText={(v) => set("einsatzendeZeit", v)}
+                    placeholder="HH:MM"
+                    testID="input-einsatzende-zeit"
+                  />
+                </Field>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.durationRow} testID="duration-display">
+            <View style={styles.durationIconWrap}>
+              <Feather name="clock" size={16} color={colors.brandPrimary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.durationLabel}>Dauer (automatisch)</Text>
+              <Text style={styles.durationValue}>{formatDuration(dauerMin)}</Text>
+            </View>
+          </View>
+
           <Field label="Einsatzort">
             <TextField
               value={m.einsatzOrt}
@@ -142,14 +401,40 @@ export function MissionForm({
               testID="input-ort"
             />
           </Field>
-          <Field label="Stichwort / Ereignisart">
-            <TextField
-              value={m.stichwort}
-              onChangeText={(v) => set("stichwort", v)}
-              placeholder="z.B. Todesfall im häuslichen Umfeld"
-              testID="input-stichwort"
+
+          <Field label="Stichwort / Ereignisart (mehrfach)">
+            <CheckList
+              options={stichwortOptions}
+              selected={m.stichworte}
+              onToggle={(v) => toggleMulti("stichworte", v)}
+              testIDPrefix="check-stichwort"
             />
           </Field>
+
+          <View style={styles.addRow}>
+            <View style={{ flex: 1 }}>
+              <Field label="Sonstiges (wird zur Auswahl hinzugefügt)">
+                <TextField
+                  value={stichwortInput}
+                  onChangeText={setStichwortInput}
+                  placeholder="Eigenes Stichwort eintragen"
+                  testID="input-stichwort-sonstiges"
+                />
+              </Field>
+            </View>
+            <Pressable
+              onPress={addStichwortSonstiges}
+              style={[
+                styles.addInlineBtn,
+                !stichwortInput.trim() && styles.addInlineBtnDisabled,
+              ]}
+              disabled={!stichwortInput.trim()}
+              testID="add-stichwort-btn"
+            >
+              <Feather name="plus" size={18} color={colors.onBrandPrimary} />
+            </Pressable>
+          </View>
+
           <View style={styles.rowSplit}>
             <View style={{ flex: 1 }}>
               <Field label="Einsatz-Nr.">
@@ -161,18 +446,8 @@ export function MissionForm({
                 />
               </Field>
             </View>
-            <View style={{ flex: 1 }}>
-              <Field label="Dauer (Min.)">
-                <TextField
-                  value={m.dauerMinuten}
-                  onChangeText={(v) => set("dauerMinuten", v)}
-                  placeholder="z.B. 90"
-                  keyboardType="numeric"
-                  testID="input-dauer"
-                />
-              </Field>
-            </View>
           </View>
+
           <Field label="Einsatzkraft">
             <TextField
               value={m.einsatzkraft}
@@ -181,23 +456,47 @@ export function MissionForm({
               testID="input-einsatzkraft"
             />
           </Field>
-          <Field label="Organisation">
-            <TextField
-              value={m.organisation}
-              onChangeText={(v) => set("organisation", v)}
-              placeholder="z.B. Malteser, ASB, DRK, KIT"
-              testID="input-organisation"
+
+          <Field label="Organisation (Einzelauswahl)">
+            <RadioList
+              options={orgOptions}
+              selected={m.organisation}
+              onChange={(v) => set("organisation", v)}
+              testIDPrefix="radio-organisation"
             />
           </Field>
+
+          <View style={styles.addRow}>
+            <View style={{ flex: 1 }}>
+              <Field label="weitere (wird zur Auswahl hinzugefügt)">
+                <TextField
+                  value={orgWeitereInput}
+                  onChangeText={setOrgWeitereInput}
+                  placeholder="Andere Organisation eintragen"
+                  testID="input-org-weitere"
+                />
+              </Field>
+            </View>
+            <Pressable
+              onPress={addOrgWeitere}
+              style={[
+                styles.addInlineBtn,
+                !orgWeitereInput.trim() && styles.addInlineBtnDisabled,
+              ]}
+              disabled={!orgWeitereInput.trim()}
+              testID="add-org-btn"
+            >
+              <Feather name="plus" size={18} color={colors.onBrandPrimary} />
+            </Pressable>
+          </View>
         </Section>
 
+        {/* BETROFFENE */}
         <Section title="Betroffene">
           {m.betroffene.map((b, i) => (
             <View key={i} style={styles.affectedCard} testID={`affected-${i}`}>
               <View style={styles.affectedHeader}>
-                <Text style={styles.affectedTitle}>
-                  Betroffene:r {i + 1}
-                </Text>
+                <Text style={styles.affectedTitle}>Betroffene:r {i + 1}</Text>
                 {m.betroffene.length > 1 ? (
                   <Pressable
                     onPress={() => removeAffected(i)}
@@ -238,7 +537,7 @@ export function MissionForm({
                   />
                 </Field>
                 <Field label="Rolle">
-                  <ChipRow
+                  <ChipRowInline
                     options={[
                       "Betroffene:r",
                       "Angehörige:r",
@@ -264,33 +563,74 @@ export function MissionForm({
           </Pressable>
         </Section>
 
-        <Section title="Zustand & Symptome">
-          <Field label="Beobachtete Symptome (mehrfach)">
-            <ChipRow
-              options={SYMPTOME_OPTIONS}
-              selected={m.symptome}
-              onToggle={(v) => toggle("symptome", v)}
-              testIDPrefix="chip-symptom"
+        {/* SITUATION AN DER EINSATZSTELLE */}
+        <Section title="Situation an der Einsatzstelle">
+          <Field label="Einsatzkräfte vor Ort (mehrfach)">
+            <CheckList
+              options={EINSATZKRAEFTE_VOR_ORT_OPTIONS}
+              selected={m.einsatzkraefteVorOrt}
+              onToggle={(v) => toggleMulti("einsatzkraefteVorOrt", v)}
+              testIDPrefix="check-einsatzkraft-vor-ort"
             />
           </Field>
-          <Field label="Weitere Beobachtungen">
+
+          <Field label="Nachforderung (mehrfach)">
+            <CheckList
+              options={NACHFORDERUNG_OPTIONS}
+              selected={m.nachforderungen}
+              onToggle={(v) => toggleMulti("nachforderungen", v)}
+              testIDPrefix="check-nachforderung"
+            />
+          </Field>
+
+          <Field label="Andere Nachforderungen (Freitext)">
             <TextField
-              value={m.symptomeNotiz}
-              onChangeText={(v) => set("symptomeNotiz", v)}
-              placeholder="Freie Notizen zum Zustand"
-              multiline
-              testID="input-symptome-notiz"
+              value={m.nachforderungenSonstiges}
+              onChangeText={(v) => set("nachforderungenSonstiges", v)}
+              placeholder="z.B. Feuerwehr, Bestatter, Dolmetscher …"
+              testID="input-nachforderung-sonstiges"
             />
           </Field>
         </Section>
 
+        {/* SETTING */}
+        <Section title="Setting">
+          <Field label="Setting">
+            <CheckList
+              options={SETTING_OPTIONS}
+              selected={m.setting}
+              onToggle={(v) => toggleMulti("setting", v)}
+              testIDPrefix="check-setting"
+            />
+          </Field>
+          <Field label="Notiz zum Setting">
+            <TextField
+              value={m.settingNotiz}
+              onChangeText={(v) => set("settingNotiz", v)}
+              placeholder="Freitext zum Setting"
+              multiline
+              testID="input-setting-notiz"
+            />
+          </Field>
+          <Field label="Weitere Beobachtungen">
+            <TextField
+              value={m.weitereBeobachtungen}
+              onChangeText={(v) => set("weitereBeobachtungen", v)}
+              placeholder="Beobachtungen zur Situation, Reaktionen, Kontext"
+              multiline
+              testID="input-weitere-beobachtungen"
+            />
+          </Field>
+        </Section>
+
+        {/* MASSNAHMEN */}
         <Section title="Maßnahmen">
           <Field label="Durchgeführte Maßnahmen (mehrfach)">
-            <ChipRow
+            <CheckList
               options={MASSNAHMEN_OPTIONS}
               selected={m.massnahmen}
-              onToggle={(v) => toggle("massnahmen", v)}
-              testIDPrefix="chip-massnahme"
+              onToggle={(v) => toggleMulti("massnahmen", v)}
+              testIDPrefix="check-massnahme"
             />
           </Field>
           <Field label="Ergänzung zu den Maßnahmen">
@@ -304,6 +644,7 @@ export function MissionForm({
           </Field>
         </Section>
 
+        {/* VERLAUF */}
         <Section title="Verlauf">
           <Field label="Einsatzverlauf / Notizen">
             <TextField
@@ -316,9 +657,10 @@ export function MissionForm({
           </Field>
         </Section>
 
+        {/* ÜBERGABE */}
         <Section title="Übergabe">
           <Field label="Übergabe an">
-            <ChipRow
+            <ChipRowInline
               options={UEBERGABE_OPTIONS}
               selected={m.uebergabeAn ? [m.uebergabeAn] : []}
               onToggle={(v) =>
@@ -338,7 +680,8 @@ export function MissionForm({
           </Field>
         </Section>
 
-        <Section title="Eigene Felder / Freitext">
+        {/* EIGENE NOTIZEN */}
+        <Section title="Eigene Notizen">
           <Field label="Zusätzliche Notizen">
             <TextField
               value={m.eigeneNotizen}
@@ -395,6 +738,139 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
   },
   rowSplit: { flexDirection: "row", gap: spacing.md },
+  timeBlock: {
+    backgroundColor: colors.brandTertiary,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  timeBlockLabel: {
+    fontSize: fontSize.sm,
+    color: colors.onBrandTertiary,
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  durationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  durationIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.brandTertiary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  durationLabel: {
+    fontSize: fontSize.sm,
+    color: colors.onSurfaceSecondary,
+  },
+  durationValue: {
+    fontSize: fontSize.lg,
+    color: colors.onSurface,
+    fontWeight: "500",
+  },
+  checkList: {
+    gap: spacing.xs,
+  },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
+  checkboxSelected: {
+    backgroundColor: colors.brandPrimary,
+    borderColor: colors.brandPrimary,
+  },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
+  radioSelected: {
+    borderColor: colors.brandPrimary,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.brandPrimary,
+  },
+  checkText: {
+    flex: 1,
+    fontSize: fontSize.base,
+    color: colors.onSurface,
+  },
+  addRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  addInlineBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandPrimary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addInlineBtnDisabled: {
+    backgroundColor: colors.surfaceTertiary,
+  },
+  chipRow: {
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    flexShrink: 0,
+  },
+  chipSelected: {
+    backgroundColor: colors.brandSecondary,
+    borderColor: colors.brandPrimary,
+  },
+  chipText: {
+    fontSize: fontSize.base,
+    color: colors.onSurfaceSecondary,
+    fontWeight: "500",
+  },
+  chipTextSelected: {
+    color: colors.onBrandSecondary,
+  },
   affectedCard: {
     backgroundColor: colors.surfaceSecondary,
     borderRadius: radius.md,

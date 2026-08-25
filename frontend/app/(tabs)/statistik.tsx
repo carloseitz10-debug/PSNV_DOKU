@@ -12,6 +12,7 @@ import { useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { colors, spacing, radius, fontSize } from "@/src/theme";
 import { getAllMissions } from "@/src/lib/storage";
+import { formatDuration } from "@/src/lib/duration";
 import type { Mission } from "@/src/types";
 
 export default function StatistikScreen() {
@@ -33,7 +34,7 @@ export default function StatistikScreen() {
     const now = new Date();
     const thisMonth = missions.filter((m) => {
       try {
-        const d = new Date(m.einsatzDatum);
+        const d = new Date(m.alarmierungDatum);
         return (
           d.getFullYear() === now.getFullYear() &&
           d.getMonth() === now.getMonth()
@@ -44,20 +45,28 @@ export default function StatistikScreen() {
     }).length;
 
     const byStichwort = new Map<string, number>();
-    const bySymptom = new Map<string, number>();
+    const byOrg = new Map<string, number>();
+    const bySetting = new Map<string, number>();
+    const byMassnahme = new Map<string, number>();
     let totalDauer = 0;
     let dauerCount = 0;
     let betroffeneTotal = 0;
 
     missions.forEach((m) => {
-      const key = (m.stichwort || "Ohne Stichwort").trim() || "Ohne Stichwort";
-      byStichwort.set(key, (byStichwort.get(key) ?? 0) + 1);
-      m.symptome?.forEach((s) => {
-        bySymptom.set(s, (bySymptom.get(s) ?? 0) + 1);
+      m.stichworte?.forEach((s) => {
+        byStichwort.set(s, (byStichwort.get(s) ?? 0) + 1);
       });
-      const dauer = parseInt(m.dauerMinuten, 10);
-      if (!isNaN(dauer)) {
-        totalDauer += dauer;
+      if (m.organisation) {
+        byOrg.set(m.organisation, (byOrg.get(m.organisation) ?? 0) + 1);
+      }
+      m.setting?.forEach((s) => {
+        bySetting.set(s, (bySetting.get(s) ?? 0) + 1);
+      });
+      m.massnahmen?.forEach((s) => {
+        byMassnahme.set(s, (byMassnahme.get(s) ?? 0) + 1);
+      });
+      if (m.dauerMinuten > 0) {
+        totalDauer += m.dauerMinuten;
         dauerCount += 1;
       }
       betroffeneTotal += m.betroffene?.length ?? 0;
@@ -67,7 +76,9 @@ export default function StatistikScreen() {
       total,
       thisMonth,
       byStichwort: Array.from(byStichwort.entries()).sort((a, b) => b[1] - a[1]),
-      bySymptom: Array.from(bySymptom.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6),
+      byOrg: Array.from(byOrg.entries()).sort((a, b) => b[1] - a[1]),
+      bySetting: Array.from(bySetting.entries()).sort((a, b) => b[1] - a[1]),
+      byMassnahme: Array.from(byMassnahme.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8),
       avgDauer: dauerCount > 0 ? Math.round(totalDauer / dauerCount) : 0,
       betroffeneTotal,
     };
@@ -117,33 +128,71 @@ export default function StatistikScreen() {
           <MetricCard
             icon="clock"
             label="Ø Dauer"
-            value={stats.avgDauer > 0 ? `${stats.avgDauer} min` : "—"}
+            value={stats.avgDauer > 0 ? formatDuration(stats.avgDauer) : "—"}
             testID="metric-dauer"
           />
         </View>
 
         <Text style={styles.sectionTitle}>Häufigste Stichworte</Text>
         {stats.byStichwort.length === 0 ? (
-          <EmptyBox text="Noch keine Daten für Statistiken." />
+          <EmptyBox text="Noch keine Daten." />
         ) : (
           <View style={styles.list}>
-            {stats.byStichwort.slice(0, 8).map(([key, count]) => (
-              <StatRow key={key} label={key} count={count} total={stats.total} />
-            ))}
-          </View>
-        )}
-
-        <Text style={styles.sectionTitle}>Häufigste Symptome</Text>
-        {stats.bySymptom.length === 0 ? (
-          <EmptyBox text="Noch keine Symptome erfasst." />
-        ) : (
-          <View style={styles.list}>
-            {stats.bySymptom.map(([key, count]) => (
+            {stats.byStichwort.slice(0, 10).map(([key, count]) => (
               <StatRow
                 key={key}
                 label={key}
                 count={count}
-                total={stats.bySymptom[0][1]}
+                total={stats.byStichwort[0][1]}
+              />
+            ))}
+          </View>
+        )}
+
+        <Text style={styles.sectionTitle}>Organisation</Text>
+        {stats.byOrg.length === 0 ? (
+          <EmptyBox text="Keine Organisation erfasst." />
+        ) : (
+          <View style={styles.list}>
+            {stats.byOrg.map(([key, count]) => (
+              <StatRow
+                key={key}
+                label={key}
+                count={count}
+                total={stats.byOrg[0][1]}
+                accent
+              />
+            ))}
+          </View>
+        )}
+
+        <Text style={styles.sectionTitle}>Setting</Text>
+        {stats.bySetting.length === 0 ? (
+          <EmptyBox text="Kein Setting erfasst." />
+        ) : (
+          <View style={styles.list}>
+            {stats.bySetting.map(([key, count]) => (
+              <StatRow
+                key={key}
+                label={key}
+                count={count}
+                total={stats.bySetting[0][1]}
+              />
+            ))}
+          </View>
+        )}
+
+        <Text style={styles.sectionTitle}>Häufigste Maßnahmen</Text>
+        {stats.byMassnahme.length === 0 ? (
+          <EmptyBox text="Keine Maßnahmen erfasst." />
+        ) : (
+          <View style={styles.list}>
+            {stats.byMassnahme.map(([key, count]) => (
+              <StatRow
+                key={key}
+                label={key}
+                count={count}
+                total={stats.byMassnahme[0][1]}
                 accent
               />
             ))}
@@ -193,7 +242,7 @@ function StatRow({
   return (
     <View style={styles.statRow}>
       <View style={styles.statRowHeader}>
-        <Text style={styles.statLabel} numberOfLines={1}>
+        <Text style={styles.statLabel} numberOfLines={2}>
           {label}
         </Text>
         <Text style={styles.statCount}>{count}</Text>

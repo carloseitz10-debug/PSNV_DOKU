@@ -2,6 +2,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import type { Mission } from '../types';
+import { formatDuration } from './duration';
 
 function esc(s: string | undefined | null): string {
   if (!s) return '';
@@ -25,6 +26,11 @@ function chips(items: string[]): string {
   return items.map((s) => `<span class="chip">${esc(s)}</span>`).join(' ');
 }
 
+function timeBlockCell(label: string, date: string, time: string): string {
+  const value = date || time ? `${esc(date) || '—'}${time ? ` &middot; ${esc(time)}` : ''}` : '—';
+  return `<td class="tb"><div class="tb-lbl">${label}</div><div class="tb-val">${value}</div></td>`;
+}
+
 export function buildHtml(m: Mission): string {
   const affectedRows = (m.betroffene || [])
     .map(
@@ -37,7 +43,7 @@ export function buildHtml(m: Mission): string {
           ${row('Geschlecht', b.gender)}
           ${row('Rolle', b.role)}
         </table>
-      </div>`
+      </div>`,
     )
     .join('');
 
@@ -52,7 +58,11 @@ export function buildHtml(m: Mission): string {
   h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px 0; color: #1C1C1E; }
   .subtitle { color: #48484A; font-size: 13px; margin-bottom: 20px; }
   .brand-bar { height: 6px; background: #4A6B53; border-radius: 3px; margin-bottom: 20px; }
-  .meta { display: flex; justify-content: space-between; margin-bottom: 24px; padding: 12px 16px; background: #F5F5F7; border-radius: 8px; font-size: 12px; }
+  .times { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin-bottom: 14px; }
+  .tb { padding: 10px 12px; background: #E8EFE9; border-radius: 8px; vertical-align: top; }
+  .tb-lbl { font-size: 10px; color: #4A6B53; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .tb-val { font-size: 12px; color: #1A261D; font-weight: 500; }
+  .meta { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 12px 16px; background: #F5F5F7; border-radius: 8px; font-size: 12px; }
   .meta div { color: #48484A; }
   .meta strong { color: #1C1C1E; font-weight: 500; }
   section { margin-bottom: 22px; page-break-inside: avoid; }
@@ -65,6 +75,7 @@ export function buildHtml(m: Mission): string {
   .sub { margin-bottom: 10px; padding: 10px 12px; background: #FAFAFC; border-radius: 8px; }
   .sub-title { font-weight: 500; color: #2E4233; margin-bottom: 6px; font-size: 12px; }
   .note { white-space: pre-wrap; padding: 8px 12px; background: #F5F5F7; border-radius: 8px; color: #1C1C1E; font-size: 12px; }
+  .lbl-inline { font-size: 11px; color: #48484A; margin: 8px 0 4px 0; }
   .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #E5E5EA; color: #8E8E93; font-size: 10px; text-align: center; }
 </style>
 </head>
@@ -73,21 +84,28 @@ export function buildHtml(m: Mission): string {
   <h1>PSNV-B Einsatzprotokoll</h1>
   <div class="subtitle">Psychosoziale Notfallversorgung – Betroffene</div>
 
+  <table class="times">
+    <tr>
+      ${timeBlockCell('Alarmierung', m.alarmierungDatum, m.alarmierungZeit)}
+      ${timeBlockCell('Eintreffen', m.eintreffenDatum, m.eintreffenZeit)}
+      ${timeBlockCell('Einsatzende', m.einsatzendeDatum, m.einsatzendeZeit)}
+    </tr>
+  </table>
+
   <div class="meta">
     <div><strong>Einsatz-Nr.</strong><br/>${esc(m.einsatzNummer) || '&mdash;'}</div>
-    <div><strong>Datum</strong><br/>${esc(m.einsatzDatum)}</div>
-    <div><strong>Uhrzeit</strong><br/>${esc(m.einsatzZeit)}</div>
-    <div><strong>Dauer</strong><br/>${esc(m.dauerMinuten) ? esc(m.dauerMinuten) + ' Min.' : '&mdash;'}</div>
+    <div><strong>Dauer</strong><br/>${esc(formatDuration(m.dauerMinuten))}</div>
+    <div><strong>Organisation</strong><br/>${esc(m.organisation) || '&mdash;'}</div>
+    <div><strong>Einsatzkraft</strong><br/>${esc(m.einsatzkraft) || '&mdash;'}</div>
   </div>
 
   <section>
     <h2>Einsatzdaten</h2>
     <table>
       ${row('Einsatzort', m.einsatzOrt)}
-      ${row('Stichwort / Ereignisart', m.stichwort)}
-      ${row('Einsatzkraft', m.einsatzkraft)}
-      ${row('Organisation', m.organisation)}
     </table>
+    <div class="lbl-inline">Stichworte / Ereignisart</div>
+    <div>${chips(m.stichworte || [])}</div>
   </section>
 
   <section>
@@ -96,15 +114,25 @@ export function buildHtml(m: Mission): string {
   </section>
 
   <section>
-    <h2>Zustand &amp; Symptome</h2>
-    <div style="margin-bottom: 8px;">${chips(m.symptome || [])}</div>
-    ${m.symptomeNotiz ? `<div class="note">${esc(m.symptomeNotiz)}</div>` : ''}
+    <h2>Situation an der Einsatzstelle</h2>
+    <div class="lbl-inline">Einsatzkräfte vor Ort</div>
+    <div>${chips(m.einsatzkraefteVorOrt || [])}</div>
+    <div class="lbl-inline">Nachforderung</div>
+    <div>${chips(m.nachforderungen || [])}</div>
+    ${m.nachforderungenSonstiges ? `<div class="note" style="margin-top:8px;">${esc(m.nachforderungenSonstiges)}</div>` : ''}
+  </section>
+
+  <section>
+    <h2>Setting</h2>
+    <div>${chips(m.setting || [])}</div>
+    ${m.settingNotiz ? `<div class="note" style="margin-top:8px;">${esc(m.settingNotiz)}</div>` : ''}
+    ${m.weitereBeobachtungen ? `<div class="lbl-inline">Weitere Beobachtungen</div><div class="note">${esc(m.weitereBeobachtungen)}</div>` : ''}
   </section>
 
   <section>
     <h2>Maßnahmen</h2>
-    <div style="margin-bottom: 8px;">${chips(m.massnahmen || [])}</div>
-    ${m.massnahmenNotiz ? `<div class="note">${esc(m.massnahmenNotiz)}</div>` : ''}
+    <div>${chips(m.massnahmen || [])}</div>
+    ${m.massnahmenNotiz ? `<div class="note" style="margin-top:8px;">${esc(m.massnahmenNotiz)}</div>` : ''}
   </section>
 
   <section>
@@ -159,7 +187,6 @@ export async function printPdf(mission: Mission): Promise<void> {
   if (Platform.OS === 'ios' || Platform.OS === 'android') {
     await Print.printAsync({ html });
   } else {
-    // web fallback
     await Print.printAsync({ html });
   }
 }
