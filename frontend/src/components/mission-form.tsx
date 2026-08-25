@@ -17,6 +17,8 @@ import {
   TextField,
   SegmentSelect,
 } from "@/src/components/form";
+import { DatePickerField } from "@/src/components/date-picker-field";
+import { TimePickerField } from "@/src/components/time-picker-field";
 import { colors, spacing, radius, fontSize } from "@/src/theme";
 import {
   EINSATZKRAEFTE_VOR_ORT_OPTIONS,
@@ -310,20 +312,18 @@ export function MissionForm({
             <View style={styles.rowSplit}>
               <View style={{ flex: 1 }}>
                 <Field label="Datum">
-                  <TextField
+                  <DatePickerField
                     value={m.alarmierungDatum}
-                    onChangeText={(v) => set("alarmierungDatum", v)}
-                    placeholder="YYYY-MM-DD"
+                    onChange={(v) => set("alarmierungDatum", v)}
                     testID="input-alarmierung-datum"
                   />
                 </Field>
               </View>
               <View style={{ flex: 1 }}>
                 <Field label="Uhrzeit">
-                  <TextField
+                  <TimePickerField
                     value={m.alarmierungZeit}
-                    onChangeText={(v) => set("alarmierungZeit", v)}
-                    placeholder="HH:MM"
+                    onChange={(v) => set("alarmierungZeit", v)}
                     testID="input-alarmierung-zeit"
                   />
                 </Field>
@@ -336,20 +336,18 @@ export function MissionForm({
             <View style={styles.rowSplit}>
               <View style={{ flex: 1 }}>
                 <Field label="Datum">
-                  <TextField
+                  <DatePickerField
                     value={m.eintreffenDatum}
-                    onChangeText={(v) => set("eintreffenDatum", v)}
-                    placeholder="YYYY-MM-DD"
+                    onChange={(v) => set("eintreffenDatum", v)}
                     testID="input-eintreffen-datum"
                   />
                 </Field>
               </View>
               <View style={{ flex: 1 }}>
                 <Field label="Uhrzeit">
-                  <TextField
+                  <TimePickerField
                     value={m.eintreffenZeit}
-                    onChangeText={(v) => set("eintreffenZeit", v)}
-                    placeholder="HH:MM"
+                    onChange={(v) => set("eintreffenZeit", v)}
                     testID="input-eintreffen-zeit"
                   />
                 </Field>
@@ -362,20 +360,18 @@ export function MissionForm({
             <View style={styles.rowSplit}>
               <View style={{ flex: 1 }}>
                 <Field label="Datum">
-                  <TextField
+                  <DatePickerField
                     value={m.einsatzendeDatum}
-                    onChangeText={(v) => set("einsatzendeDatum", v)}
-                    placeholder="YYYY-MM-DD"
+                    onChange={(v) => set("einsatzendeDatum", v)}
                     testID="input-einsatzende-datum"
                   />
                 </Field>
               </View>
               <View style={{ flex: 1 }}>
                 <Field label="Uhrzeit">
-                  <TextField
+                  <TimePickerField
                     value={m.einsatzendeZeit}
-                    onChangeText={(v) => set("einsatzendeZeit", v)}
-                    placeholder="HH:MM"
+                    onChange={(v) => set("einsatzendeZeit", v)}
                     testID="input-einsatzende-zeit"
                   />
                 </Field>
